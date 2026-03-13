@@ -16,18 +16,43 @@ source ~/.bashrc
 Crear el entorno del proyecto:
 
 ```
-conda create -n masterclass_mlops python=3.10 -y
-conda activate masterclass_mlops
+conda create -n production_mlops python=3.10 -y
+conda activate production_mlops
 pip install mlflow dvc dvc-s3 pandas scikit-learn fastapi uvicorn
+```
+Configuramos Git
+
+```
+git config --global user.name "TuNombre"
+git config --global user.email "nombre@empresa.com"
+git config --global init.defaultBranch main
+
+```
+
+Creamos carpeta para el ejercicio
+```
+mkdir diabetes_mlops_masterclass && cd diabetes_mlops_masterclass
 ```
 
 Inicialización Git y DVC
+
 ```
 git init
 dvc init
-git commit -m "Iniciando prroyecto MLOps"
+git commit -m "Iniciando proyecto MLOps"
+dvc status
 
 ```
+
+Al ejecutar git status, vemos que DVC ha creado archivos como .dvc/.gitignore y .dvc/config. 
+Estos archivos deben ser agregados y confirmados en Git de inmediato para establecer la base del seguimiento de datos.
+
+```
+git add .dvc
+git commit -m "Inicializamos DVC"
+```
+
+
 Podemos crear el árbol de carpetas de nuestro experimento (EJEMPLO DE COMO SE VE EN LINUX)
 ````
 diabetes_mlops_masterclass/
@@ -71,12 +96,15 @@ mlartifacts/
 
 Configuración de repositorio remoto (en este caso lo hacemos local)
 ```
-mkdir -p /tmp/dvc_storage
-dvc remote add -d local_remote /tmp/dvc_storage
-git add.dvc/config
+mkdir -p /tmp/dvc_remote_storage
+dvc remote add -d my_local_remote /tmp/dvc_remote_storage
+git add .dvc/config
 git commit -m "Configurado storage remoto -local- de DVC"
 ```
-Creamos un script src/load_data.py
+Creamos un script src/load_data.py para cargar los datos
+
+Para esta clase, utilizaremos el dataset de diabetes de Scikit-learn, el cual consta de 442 muestras y 10 variables predictoras baseline (edad, sexo, IMC, presión arterial y seis mediciones de suero sanguíneo).
+
 ```
 import pandas as pd
 from sklearn.datasets import load_diabetes
@@ -165,7 +193,24 @@ dvc repro
 ```
 Concepto Clave: Idempotencia. Si se ejecuta ``` dvc repro ``` por segunda vez y nada ha cambiado (ni el código ni los datos), DVC no gastará CPU. Simplemente dirá que todo está al día.
 
-Ejecutamos consola MLFlow para navegar a http://localhost:5000 y ver el historial
+## MLFLOW ##
+
+Arquitectura del Servidor MLflow
+MLflow puede ejecutarse de forma local, pero en un entorno de producción se configura como un servidor centralizado con una base de datos SQL para el almacenamiento de metadatos (experimentos, parámetros, métricas) y un sistema de archivos persistente para los artefactos (modelos serializados, gráficos). Sin un backend de base de datos (como SQLite o PostgreSQL), no se puede hacer uso de la funcionalidad crítica del "Model Registry"
+
+Para iniciar el servidor local con soporte para registro de modelos:
+
+```
+mlflow server \
+    --backend-store-uri sqlite:///mlflow.db \
+    --default-artifact-root./mlartifacts \
+    --host 0.0.0.0 \
+    --port 5000
+```
+
+Ejecutamos consola MLFlow para navegar a http://local
+
+host:5000 y ver el historial
 ```
 nohup mlflow ui --port 5000 &
 ```
